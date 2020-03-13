@@ -1,15 +1,21 @@
 package main
 
 import (
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 
+	"github.com/eniehack/asteroidgazer/internal/actor"
 	"github.com/eniehack/asteroidgazer/internal/nodeinfo"
 	"github.com/eniehack/asteroidgazer/internal/webfinger"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/jmoiron/sqlx"
+	_ "github.com/lib/pq"
 	"github.com/spf13/viper"
 )
 
@@ -27,6 +33,12 @@ type Config struct {
 		Domain string
 	}
 	Database DatabaseConfig
+	Actor    struct {
+		Privatekey string
+		Icon       string
+		Image      string
+		Summary    string
+	}
 }
 
 func init() {
@@ -47,12 +59,16 @@ func main() {
 	if err := viper.Unmarshal(config); err != nil {
 		log.Fatalln(err)
 	}
+	privatekey, err := newRSAPrivateKey(config.Actor.Privatekey)
+	if err != nil {
+		log.Fatalln(err)
+	}
 	db, err := newDB(&config.Database)
 	if err != nil {
 		log.Fatalln(err)
 	}
 	chi := newChi()
-	r := newHandler(chi, db, config.Server.Domain)
+	r := newHandler(chi, db, &privatekey.PublicKey, config)
 
 	log.Fatalln(
 		http.ListenAndServe(fmt.Sprintf(":%d", config.Server.Port), r),
@@ -76,15 +92,53 @@ func newDB(config *DatabaseConfig) (*sqlx.DB, error) {
 	return db, nil
 }
 
-func newHandler(r *chi.Mux, db *sqlx.DB, hostname string) http.Handler {
-	webfingercontroller := webfinger.NewWebFingerController(hostname)
-	nodeinfocontroller := nodeinfo.NewNodeInfoController(hostname)
+func newRSAPrivateKey(filepath string) (*rsa.PrivateKey, error) {
+	file, err := ioutil.ReadFile(filepath)
+	if err != nil {
+		return nil, err
+	}
+
+	pem, _ := pem.Decode(file)
+	if pem == nil {
+		return nil, fmt.Errorf("Invaild pem file format")
+	}
+	switch pem.Type {
+	case "RSA PRIVATE KEY":
+		privatekey, err := x509.ParsePKCS1PrivateKey(pem.Bytes)
+		if err != nil {
+			return nil, err
+		}
+		return privatekey, nil
+	case "PRIVATE KEY":
+		privatekeyinterface, err := x509.ParsePKCS8PrivateKey(pem.Bytes)
+		if err != nil {
+			return nil, err
+		}
+		privatekey, ok := privatekeyinterface.(*rsa.PrivateKey)
+		if !ok {
+			return nil, fmt.Errorf("pem file is not RSA PRIVATE KEY.")
+		}
+		return privatekey, nil
+	default:
+		return nil, fmt.Errorf("pem file is not RSA PRIVATE KEY.")
+	}
+}
+
+func newHandler(r *chi.Mux, db *sqlx.DB, key *rsa.PublicKey, config *Config) http.Handler {
+	actorgateway := actor.NewActorGateway(key, config.Server.Domain, config.Actor.Summary)
+
+	actorprovider := actor.NewActorProvider(actorgateway)
+
+	webfingercontroller := webfinger.NewWebFingerController(config.Server.Domain)
+	nodeinfocontroller := nodeinfo.NewNodeInfoController(config.Server.Domain)
+	actorcontroller := actor.NewActorController(actorprovider)
+
 	r.Route("/.well-known/", func(r chi.Router) {
 		r.Get("nodeinfo/", nodeinfocontroller.ShowNodeInfoLink)
 		r.Get("webfinger", webfingercontroller.WebFinger)
 	})
 	r.Get("/nodeinfo/2.0", nodeinfocontroller.ShowNodeInfoVersion)
-	r.Get("/actor", nil)
+	r.Get("/actor", actorcontroller.ActorHandler)
 	r.Post("/inbox", nil)
 	return r
 }
