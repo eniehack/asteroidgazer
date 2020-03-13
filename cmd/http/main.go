@@ -2,8 +2,6 @@ package main
 
 import (
 	"crypto/rsa"
-	"crypto/x509"
-	"encoding/pem"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -12,6 +10,7 @@ import (
 	"github.com/eniehack/asteroidgazer/internal/actor"
 	"github.com/eniehack/asteroidgazer/internal/nodeinfo"
 	"github.com/eniehack/asteroidgazer/internal/webfinger"
+	"github.com/eniehack/asteroidgazer/pkg/rsax"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/jmoiron/sqlx"
@@ -97,31 +96,7 @@ func newRSAPrivateKey(filepath string) (*rsa.PrivateKey, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	pem, _ := pem.Decode(file)
-	if pem == nil {
-		return nil, fmt.Errorf("Invaild pem file format")
-	}
-	switch pem.Type {
-	case "RSA PRIVATE KEY":
-		privatekey, err := x509.ParsePKCS1PrivateKey(pem.Bytes)
-		if err != nil {
-			return nil, err
-		}
-		return privatekey, nil
-	case "PRIVATE KEY":
-		privatekeyinterface, err := x509.ParsePKCS8PrivateKey(pem.Bytes)
-		if err != nil {
-			return nil, err
-		}
-		privatekey, ok := privatekeyinterface.(*rsa.PrivateKey)
-		if !ok {
-			return nil, fmt.Errorf("pem file is not RSA PRIVATE KEY.")
-		}
-		return privatekey, nil
-	default:
-		return nil, fmt.Errorf("pem file is not RSA PRIVATE KEY.")
-	}
+	return rsax.ReadPrivateKey(file)
 }
 
 func newHandler(r *chi.Mux, db *sqlx.DB, key *rsa.PublicKey, config *Config) http.Handler {
