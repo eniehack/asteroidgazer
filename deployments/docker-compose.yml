@@ -1,0 +1,30 @@
+services:
+    asteroidgazer:
+        build:
+            context: ".."
+            dockerfile: "./build/Dockerfile"
+        depends_on:
+            - "redis"
+            - "pgroonga"
+        networks:
+            - "asteroidgazer"
+        volumes:
+            - "../config/config.toml:/etc/asteroidgazer/config.toml"
+
+    redis:
+        image: "redis:5.0-alpine"
+        networks:
+            - "asteroidgazer"
+        ports:
+            - "6379:6379"
+
+    pgroonga:
+        image: "groonga/pgroonga:latest-alpine-12-slim"
+        environments:
+            POSTGRES_DB: "asteroidgazer"
+            POSTGRES_PASSWORD: ""
+            POSTGRES_USER: "asteroidgazer"
+        networks:
+            - "asteroidgazer"
+        ports:
+            - "5432:5432"

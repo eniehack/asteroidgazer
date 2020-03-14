@@ -1,12 +1,14 @@
 package main
 
 import (
+	"flag"
 	"crypto/rsa"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
 
+	"github.com/BurntSushi/toml"
 	"github.com/eniehack/asteroidgazer/internal/actor"
 	"github.com/eniehack/asteroidgazer/internal/nodeinfo"
 	"github.com/eniehack/asteroidgazer/internal/webfinger"
@@ -15,63 +17,65 @@ import (
 	"github.com/go-chi/chi/middleware"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
-	"github.com/spf13/viper"
 )
 
 type DatabaseConfig struct {
-	Host     string
-	User     string
-	Password string
-	Name     string
-	SSL      string
+	Host     string `toml:"host,omitempty"`
+	Port     int    `toml:"port,omitempty"`
+	User     string `toml:"user,omitempty"`
+	Password string `toml:"password"`
+	Name     string `toml:"database,omitempty"`
+	SSL      string `toml:"ssl,omitempty"`
 }
 
 type Config struct {
 	Server struct {
-		Port   int
-		Domain string
-	}
-	Database DatabaseConfig
+		Port   int    `toml:"port,omitempty"`
+		Domain string `toml:domain"`
+	} `toml:"server"`
+	Database DatabaseConfig `toml:"database"`
 	Actor    struct {
-		Privatekey string
-		Icon       string
-		Image      string
-		Summary    string
-	}
-}
-
-func init() {
-	log.SetFlags(log.LstdFlags | log.Lshortfile)
-	viper.SetConfigName("config")
-	viper.AddConfigPath("/etc/asteroidgazer")
-	viper.AddConfigPath(".")
-	viper.AddConfigPath("$XDG_CONFIG_HOME/asteroidgazer")
-	viper.SetDefault("port", 8080)
+    Privatekey string `toml:"privatekey"`
+		Icon       string `toml:"icon,omitempty"`
+		Image      string `toml:"image,omitempty"`
+		Summary    string `toml:"summary,omitempty"`
+	} `toml:"server"`
 }
 
 func main() {
-	if err := viper.ReadInConfig(); err != nil {
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+	configfilepath := flag.String("config", "/etc/asteroidgazer/config.toml", "configuration file path (toml format)")
+
+	config, err := loadConfig(configfilepath)
+	if err != nil {
 		log.Fatalln(err)
 	}
 
-	config := new(Config)
-	if err := viper.Unmarshal(config); err != nil {
-		log.Fatalln(err)
-	}
 	privatekey, err := newRSAPrivateKey(config.Actor.Privatekey)
 	if err != nil {
 		log.Fatalln(err)
 	}
+
 	db, err := newDB(&config.Database)
 	if err != nil {
 		log.Fatalln(err)
 	}
+
 	chi := newChi()
 	r := newHandler(chi, db, &privatekey.PublicKey, config)
 
 	log.Fatalln(
 		http.ListenAndServe(fmt.Sprintf(":%d", config.Server.Port), r),
 	)
+}
+
+func loadConfig(path *string) (*Config, error) {
+	config := new(Config)
+	_, err := toml.DecodeFile(*path, config)
+	if err != nil {
+		return nil, err
+	}
+	return config, nil
 }
 
 func newChi() *chi.Mux {

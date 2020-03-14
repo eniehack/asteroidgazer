@@ -1,0 +1,6 @@
+.*
+*.adoc
+LICENSE
+test/
+*_test.go
+config/config.example.toml
