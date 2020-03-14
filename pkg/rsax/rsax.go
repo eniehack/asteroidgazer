@@ -4,7 +4,12 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
-	"fmt"
+	"errors"
+)
+
+var (
+	InvaildPEM       = errors.New("Invaild pem file format")
+	NotRSAPrivateKey = errors.New("pem file is not RSA PRIVATE KEY.")
 )
 
 func ConvertPublicKeyToString(publickey *rsa.PublicKey) string {
@@ -14,10 +19,11 @@ func ConvertPublicKeyToString(publickey *rsa.PublicKey) string {
 	encodedkey := pem.EncodeToMemory(pempublickey)
 	return string(encodedkey)
 }
+
 func ReadPrivateKey(file []byte) (*rsa.PrivateKey, error) {
 	pem, _ := pem.Decode(file)
 	if pem == nil {
-		return nil, fmt.Errorf("Invaild pem file format")
+		return nil, InvaildPEM
 	}
 	switch pem.Type {
 	case "RSA PRIVATE KEY":
@@ -33,10 +39,10 @@ func ReadPrivateKey(file []byte) (*rsa.PrivateKey, error) {
 		}
 		privatekey, ok := privatekeyinterface.(*rsa.PrivateKey)
 		if !ok {
-			return nil, fmt.Errorf("pem file is not RSA PRIVATE KEY.")
+			return nil, NotRSAPrivateKey
 		}
 		return privatekey, nil
 	default:
-		return nil, fmt.Errorf("pem file is not RSA PRIVATE KEY.")
+		return nil, NotRSAPrivateKey
 	}
 }
