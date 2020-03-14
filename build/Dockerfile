@@ -2,7 +2,7 @@ FROM golang:1.14.0-alpine AS build
 
 WORKDIR /opt/asteroidgazer
 
-COPY . ./
+COPY . /opt/asteroidgazer
 RUN apk add -U --no-cache git && \
     go build -o bin/asteroidgazer ./cmd/http
 
