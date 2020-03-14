@@ -1,0 +1,11 @@
+[server]
+port = 4501
+domain="localhost"
+
+[database]
+host = "localhost"
+port = 5432
+user = "asteroidgazer"
+password = ""
+name = "asteroidgazer"
+ssl = "disabled"
