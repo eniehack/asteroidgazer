@@ -10,6 +10,7 @@ services:
             - "asteroidgazer"
         volumes:
             - "../config/config.toml:/etc/asteroidgazer/config.toml"
+            - "../actor.pem:/etc/asteroidgazer/actor.pem"
 
     redis:
         image: "redis:5.0-alpine"

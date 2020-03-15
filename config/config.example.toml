@@ -9,3 +9,9 @@ user = "asteroidgazer"
 password = ""
 name = "asteroidgazer"
 ssl = "disabled"
+
+[actor]
+privatekey = "/etc/asteroidgazer/actor.pem"
+icon = ""
+image = ""
+summary = ""
