@@ -1,8 +1,8 @@
 package main
 
 import (
-	"flag"
 	"crypto/rsa"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -35,11 +35,11 @@ type Config struct {
 	} `toml:"server"`
 	Database DatabaseConfig `toml:"database"`
 	Actor    struct {
-    Privatekey string `toml:"privatekey"`
+		Privatekey string `toml:"privatekey"`
 		Icon       string `toml:"icon,omitempty"`
 		Image      string `toml:"image,omitempty"`
 		Summary    string `toml:"summary,omitempty"`
-	} `toml:"server"`
+	} `toml:"actor"`
 }
 
 func main() {
