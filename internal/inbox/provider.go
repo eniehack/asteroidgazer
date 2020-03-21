@@ -79,10 +79,18 @@ func (provider *InboxProvider) decodeBody(requestBody *io.ReadCloser) (*activity
 func (provider *InboxProvider) verifyBody(body *activity.Activity) error {
 	switch body.Type {
 	case "Create", "Update", "Delete", "Announce":
-		if !body.DoesContainPublicCollectionInCCAndTo() {
+		if !body.DoesContainPublicCollectionInCCorTo() {
 			return fmt.Errorf("%s activity must be contain public collection: %s", body.Type, activity.PublicCollection)
 		}
-		return nil
+
+		object := body.UnwrapObject()
+
+		switch object["type"] {
+		case "Note":
+			return nil
+		default:
+			return fmt.Errorf("maybe activity[Object][type] is not Note, or not string.")
+		}
 	case "Follow":
 		if body.Object != activity.PublicCollection {
 			return fmt.Errorf("Follow Activity's object must be contain Public collection: %s.", activity.PublicCollection)

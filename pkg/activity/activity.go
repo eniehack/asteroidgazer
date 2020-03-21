@@ -17,7 +17,7 @@ type Activity struct {
 	Cc        []string    `json:"cc"`
 }
 
-func (activity *Activity) DoesContainPublicCollectionInCCAndTo() bool {
+func (activity *Activity) DoesContainPublicCollectionInCCorTo() bool {
 	for _, to := range activity.To {
 		if to == PublicCollection {
 			return true
@@ -29,4 +29,8 @@ func (activity *Activity) DoesContainPublicCollectionInCCAndTo() bool {
 		}
 	}
 	return false
+}
+
+func (activity *Activity) UnwrapObject() map[string]interface{} {
+	return activity.Object.(map[string]interface{})
 }
